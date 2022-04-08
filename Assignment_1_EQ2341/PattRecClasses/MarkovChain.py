@@ -18,8 +18,7 @@ class MarkovChain:
 
         self.q = initial_prob  #InitialProb(i)= P[S(1) = i]
         self.A = transition_prob #TransitionProb(i,j)= P[S(t)=j | S(t-1)=i]
-
-
+        
         self.nStates = transition_prob.shape[0]
         
 
@@ -89,9 +88,10 @@ class MarkovChain:
         
         #*** Insert your own code here and remove the following error message 
         S=np.empty([1, tmax], dtype=int);
-        S[0]=np.random.choice(self.nStates , 1, p=self.q);
+        S[0,0]=np.random.choice(self.nStates , 1, p=self.q)[0];
+
         for i in range(1,tmax):
-            S[i]=np.random.choice(self.A.shape[1], 1, p=self.A[S[i-1],:]);
+            S[0,i]=np.random.choice(self.A.shape[1], 1, p=self.A[S[0,i-1],:])[0];
             if self.is_finite and S[i]==self.end_state:
                 S=S[:i];
                 break;
