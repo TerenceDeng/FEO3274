@@ -21,10 +21,12 @@ class MarkovChain:
 
 
         self.nStates = transition_prob.shape[0]
+        
 
         self.is_finite = False
         if self.A.shape[0] != self.A.shape[1]:
             self.is_finite = True
+            self.end_state = self.nStates;
 
 
     def probDuration(self, tmax):
@@ -86,8 +88,14 @@ class MarkovChain:
         """
         
         #*** Insert your own code here and remove the following error message 
-        
-        print('Not yet implemented')
+        S=np.empty([1, tmax], dtype=int);
+        S[0]=np.random.choice(self.nStates , 1, p=self.q);
+        for i in range(1,tmax):
+            S[i]=np.random.choice(self.A.shape[1], 1, p=self.A[S[i-1],:]);
+            if self.is_finite and S[i]==self.end_state:
+                S=S[:i];
+                break;
+        return S;
 
     def viterbi(self):
         pass
