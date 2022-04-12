@@ -26,7 +26,7 @@ class DiscreteD:
         """
         
         #*** Insert your own code here and remove the following error message 
-         random_values=np.random.choice(len(self.probMass),nData,p=self.probMass)
+        random_values=np.random.choice(len(self.probMass),nData,p=self.probMass)
         return random_values
         
         
