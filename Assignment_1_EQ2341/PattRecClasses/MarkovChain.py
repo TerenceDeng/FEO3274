@@ -92,9 +92,8 @@ class MarkovChain:
 
         for i in range(1,tmax):
             S[0,i]=np.random.choice(self.A.shape[1], 1, p=self.A[S[0,i-1],:])[0];
-            if self.is_finite and S[i]==self.end_state:
-                S=S[:i];
-                break;
+            if self.is_finite and S[0,i]==self.end_state:
+                return S[:, :(i-1)]
         return S;
 
     def viterbi(self):

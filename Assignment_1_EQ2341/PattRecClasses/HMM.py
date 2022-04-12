@@ -72,9 +72,15 @@ class HMM:
         
         #*** Insert your own code here and remove the following error message 
         S=self.stateGen.rand(nSamples);
+        n_features=len(self.outputDistr[0].rand(1))
         nSamples_final=len(S[0,:]);
-        X=np.asarray([self.outputDistr[i].rand(1) for i in S[0,:]])
-        X=np.reshape(X,[1,nSamples_final])
+        X=np.empty((n_features,nSamples_final));
+        for i in range(nSamples_final):
+            s=S[0,i];
+            if s<self.stateGen.nStates:
+                X[:,i]=self.outputDistr[s].rand(1).ravel()
+            else:
+                X=X[:,:i]
 
         return X,S
         
