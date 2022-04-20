@@ -64,6 +64,26 @@ def show_spectrograms_woman(color_min_rel=1e4,f_max=5e3,nfft=2048):
                             connectionstyle="arc3",color='white'))
     plt.colorbar()
     plt.show()
+    
+    plt.figure(figsize=(14, 7))#20*np.log10(Sxx[1:])
+    plt.pcolormesh(t, f[:f_max_idx],Sxx[:f_max_idx,:] ,norm=colors.LogNorm(vmin=Sxx[:f_max_idx,:].max()/color_min_rel, vmax=Sxx[:f_max_idx,:].max()))
+    #plt.yscale("log")
+    plt.ylabel('Frequency [Hz]')
+    plt.xlabel('Time [sec]')
+    plt.title("Female speech spectrogram")
+    ax = plt.gca()
+    an1 = ax.annotate('Voiced speech',fontsize=24,
+                      xy=(0.38,370), xycoords='data',
+                      xytext=(30,80), textcoords='offset points',color='white',
+                      arrowprops=dict(arrowstyle="->",
+                            connectionstyle="arc3",color='white'))
+    an2 = ax.annotate('Unvoiced speech',fontsize=24,
+                      xy=(0.23,3000), xycoords='data',
+                      xytext=(70,57), textcoords='offset points',color='white',
+                      arrowprops=dict(arrowstyle="->",
+                            connectionstyle="arc3",color='white'))
+    plt.colorbar()
+    plt.show()
 def show_spectrograms_music(color_min_rel=1e6,f_max=5e3,nfft=1024): 
     music_fs,music_x=read_wav(music_path);
     f, t, Sxx = signal.spectrogram(music_x, music_fs,window=signal.windows.hamming(nfft),noverlap=nfft/2)
