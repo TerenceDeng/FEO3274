@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 import matplotlib.colors as colors
-from python_speech_features import mfcc
+from python_speech_features import mfcc,delta
 from scipy.stats import zscore
 
 woman_path="Sounds/female.wav"
@@ -192,8 +192,21 @@ def show_corr(nfft=1024):
     fig.colorbar(im, cax=cbar_ax)
     fig.suptitle("Comparison of correlations", fontsize=26)
     
+def get_features_with_dynamics(x,fs,N=2):
+    features_mfcc = mfcc(x, fs);
+    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    features_mfcc_norm_d1 = delta(features_mfcc_norm, N)
+    features_mfcc_norm_d2 = delta(features_mfcc_norm_d1, N)
+    final_feature_vector = np.concatenate((features_mfcc_norm,features_mfcc_norm_d1,features_mfcc_norm_d2),axis=1)
+    #Each row contains all the features
+    return final_feature_vector;
+
+def test_final_feature_vector():
+    woman_fs,woman_x=read_wav(woman_path);
+    a=get_features_with_dynamics(woman_x,woman_fs);
 if __name__ == "__main__":
     #show_osc_behaviour();
     #show_spectrograms();
     #show_cepstrograms();
-    show_corr();
+    #show_corr();
+    test_final_feature_vector();
