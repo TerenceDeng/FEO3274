@@ -207,6 +207,6 @@ def test_final_feature_vector():
 if __name__ == "__main__":
     #show_osc_behaviour();
     #show_spectrograms();
-    #show_cepstrograms();
-    #show_corr();
-    test_final_feature_vector();
+    show_cepstrograms();
+    show_corr();
+    #test_final_feature_vector();
