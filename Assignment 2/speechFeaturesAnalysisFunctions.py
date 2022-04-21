@@ -3,9 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 import matplotlib.colors as colors
+from python_speech_features import mfcc
+from scipy.stats import zscore
 
 woman_path="Sounds/female.wav"
 music_path="Sounds/music.wav"
+male_path="Sounds/male.wav"
 
 def read_wav(path):
     fs, x = wavfile.read(path)
@@ -116,6 +119,81 @@ def show_spectrograms():
     show_spectrograms_woman();
     show_spectrograms_music();
     
+def show_cepstrograms(color_min_rel=1e6):
+    woman_fs,woman_x=read_wav(woman_path);
+    music_fs,music_x=read_wav(music_path);
+    male_fs,male_x=read_wav(male_path);
+    
+    t_end=int(len(woman_x)/woman_fs);
+    features_mfcc = mfcc(woman_x, woman_fs); # default windows of 25ms and fft of 512.
+    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    t=np.linspace(0,t_end,np.shape(features_mfcc)[0]);
+    plt.figure(figsize=(14, 7))#20*np.log10(Sxx[1:])
+    plt.pcolormesh(t, np.arange(np.shape(features_mfcc)[1]),features_mfcc_norm.T)
+    plt.ylabel('Cepstrum coefs')
+    plt.xlabel('Time [sec]')
+    plt.title("Female speech cepstrogram")
+    plt.colorbar()
+    plt.show()
+    
+    t_end=int(len(music_x)/music_fs);
+    features_mfcc = mfcc(music_x, music_fs);
+    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    t=np.linspace(0,t_end,np.shape(features_mfcc)[0]);
+    plt.figure(figsize=(14, 7))#20*np.log10(Sxx[1:])
+    plt.pcolormesh(t, np.arange(np.shape(features_mfcc)[1]),features_mfcc_norm.T)
+    plt.ylabel('Cepstrum coefs')
+    plt.xlabel('Time [sec]')
+    plt.title("Music cepstrogram")
+    plt.colorbar()
+    plt.show()
+    
+    t_end=int(len(male_x)/male_fs);
+    features_mfcc = mfcc(male_x, male_fs);
+    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    t=np.linspace(0,t_end,np.shape(features_mfcc)[0]);
+    plt.figure(figsize=(14, 7))#20*np.log10(Sxx[1:])
+    plt.pcolormesh(t, np.arange(np.shape(features_mfcc)[1]),features_mfcc_norm.T)
+    plt.ylabel('Cepstrum coefs')
+    plt.xlabel('Time [sec]')
+    plt.title("Male cepstrogram")
+    plt.colorbar()
+    plt.show()
+    
+def show_corr(nfft=1024):
+    woman_fs,woman_x=read_wav(woman_path);
+    #music_fs,music_x=read_wav(music_path);
+    #male_fs,male_x=read_wav(male_path);
+    f, t, Sxx = signal.spectrogram(woman_x, woman_fs,window=signal.windows.hamming(nfft),noverlap=nfft/2)
+    corr_matrix_spectrogram=np.corrcoef(np.log10(Sxx));
+    features_mfcc = mfcc(woman_x, woman_fs); # default windows of 25ms and fft of 512.
+    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    corr_matrix_cepstogram=np.corrcoef(features_mfcc_norm.T);
+    # plt.figure()
+    # plt.pcolormesh(f,f,corr_matrix_spectrogram);
+    # plt.show();
+    # plt.figure();
+    # coefs_mfcc_n=np.arange(np.shape(features_mfcc)[1]);
+    # plt.pcolormesh(coefs_mfcc_n,coefs_mfcc_n,corr_matrix_cepstogram);
+    # plt.show()
+    fig, (ax1,ax2) = plt.subplots(1, 2, figsize=(14,7))
+    cmap=plt.cm.bwr
+    im=ax1.pcolormesh(f, f, corr_matrix_spectrogram,cmap=cmap, vmin=-1, vmax=1)
+    ax1.set_xlabel("Frequency [Hz]")
+    ax1.set_ylabel("Frequency [Hz]")
+    ax1.set_title("Correlation of log magnitudes on spectrogram frequency bins")
+    coefs_mfcc_n=np.arange(np.shape(features_mfcc)[1]);
+    im=ax2.pcolormesh(coefs_mfcc_n,coefs_mfcc_n,corr_matrix_cepstogram,cmap=cmap, vmin=-1, vmax=1)
+    ax2.set_xlabel("MFCC")
+    ax2.set_ylabel("MFCC")
+    ax2.set_title("Correlation of MFCCs")
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+    fig.suptitle("Comparison of correlations", fontsize=26)
+    
 if __name__ == "__main__":
-    show_osc_behaviour();
-    show_spectrograms();
+    #show_osc_behaviour();
+    #show_spectrograms();
+    #show_cepstrograms();
+    show_corr();
