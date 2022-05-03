@@ -121,8 +121,28 @@ class MarkovChain:
     def initErgodic(self):
         pass
 
-    def forward(self):
-        pass
+    def forward(self, pX):
+        if self.is_finite:
+            A = self.A[:,:-1]
+        else:
+            A = self.A
+        c = np.zeros(pX.shape[1])
+        alpha = np.zeros((A.shape[0],pX.shape[1]))
+        temp = np.zeros(A.shape[0])
+        c[0] = np.sum(self.q*pX[:,0])
+        alpha[:,0] = (self.q*pX[:,0])/c[0]
+
+        for t in range(1, pX.shape[1]):
+            for j in range(A.shape[0]):
+                temp[j] = alpha[:,t-1].dot(A[:,j]) * pX[j,t]
+            c[t] = np.sum(temp)
+            alpha[:,t] = temp/c[t]
+
+        if self.is_finite:
+            variable = alpha[:,-1].dot(self.A[:, -1])
+            c = np.append(c, np.array([variable]))
+            
+        return alpha, c
 
     def finiteDuration(self):
         pass

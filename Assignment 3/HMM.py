@@ -3,18 +3,6 @@ from DiscreteD import DiscreteD
 from GaussD import GaussD
 from MarkovChain import MarkovChain
 
-def prob(x, B):
-    T = x.shape[1]
-    N = len(B)
-    res = np.zeros((T, N))
-    for i in range(T):
-        for j in range(N):
-            res[i,j] = B[j].prob(x[:,i])
-    # scaled = np.zeros(res.shape)
-    # for i in range(scaled.shape[0]):
-    #     for j in range(scaled.shape[1]):
-    #         scaled[i, j] = res[i,j]/np.amax(res[i])
-    return res
 
 class HMM:
     """
@@ -96,32 +84,38 @@ class HMM:
 
         return X,S
         
-    def forward(self, obs):
-        if self.stateGen.is_finite:
-            A = self.stateGen.A[:,:-1]
-        else:
-            A = self.stateGen.A
-        p = prob(obs, self.outputDistr)
-        c = np.zeros(obs.shape[1])
-        alpha = np.zeros((obs.shape[1], A.shape[0]))
-        temp = np.zeros(A.shape[0])
-        c[0] = np.sum(self.stateGen.q*p[0])
-        alpha[0,:] = (self.stateGen.q*p[0])/c[0]
+    # def forward(self, obs):
+    #     if self.stateGen.is_finite:
+    #         A = self.stateGen.A[:,:-1]
+    #     else:
+    #         A = self.stateGen.A
+    #     p = prob(obs, self.outputDistr)
+    #     c = np.zeros(obs.shape[1])
+    #     alpha = np.zeros((obs.shape[1], A.shape[0]))
+    #     temp = np.zeros(A.shape[0])
+    #     c[0] = np.sum(self.stateGen.q*p[0])
+    #     alpha[0,:] = (self.stateGen.q*p[0])/c[0]
 
-        for t in range(1, obs.shape[1]):
-            for j in range(A.shape[0]):
-                temp[j] = alpha[t-1].dot(A[:,j]) * p[t, j]
-            c[t] = np.sum(temp)
-            alpha[t, :] = temp/c[t]
+    #     for t in range(1, obs.shape[1]):
+    #         for j in range(A.shape[0]):
+    #             temp[j] = alpha[t-1].dot(A[:,j]) * p[t, j]
+    #         c[t] = np.sum(temp)
+    #         alpha[t, :] = temp/c[t]
 
-        if self.stateGen.is_finite:
-            variable = alpha[-1].dot(self.A[:, -1])
-            c = np.append(c, np.array([variable]))
-        return alpha, c
+    #     if self.stateGen.is_finite:
+    #         variable = alpha[-1].dot(self.stateGen.A[:, -1])
+    #         c = np.append(c, np.array([variable]))
+    #     return alpha, c
+    
+    def forward(self,obs,norm=True):
+        res, scaled = self.prob(obs);
+        if not norm:
+            scaled = res;
+        return self.stateGen.forward(scaled)
     
     def viterbi(self):
         pass
-
+    
     def train(self):
         pass
 
@@ -142,3 +136,15 @@ class HMM:
 
     def adaptAccum(self):
         pass
+    def prob(self, x):
+        T = x.shape[1]
+        N = len(self.outputDistr)
+        res = np.zeros((N, T))
+        for i in range(N):
+            for j in range(T):
+                res[i,j] = self.outputDistr[i].prob(x[:,j])
+        scaled = np.zeros(res.shape)
+        for i in range(scaled.shape[0]):
+            for j in range(scaled.shape[1]):
+                scaled[i, j] = res[i,j]/np.amax(res[:,j])
+        return res, scaled
