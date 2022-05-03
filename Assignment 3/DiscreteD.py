@@ -12,7 +12,7 @@ class DiscreteD:
     def __init__(self, x):
         self.pseudoCount = 0
         self.probMass = x/np.sum(x)
-        
+        self.dataSize = 1;
     def rand(self, nData):
         """
         R=rand(nData) returns random scalars drawn from given Discrete Distribution.
@@ -68,8 +68,8 @@ class DiscreteD:
     def entropy(self):
         pass
 
-    def prob(self):
-        pass
+    def prob(self,x):
+        return self.probMass[x-1];
     
     def double(self):
         pass

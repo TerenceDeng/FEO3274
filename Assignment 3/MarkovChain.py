@@ -1,5 +1,5 @@
 import numpy as np
-from .DiscreteD import DiscreteD
+from DiscreteD import DiscreteD
 
 class MarkovChain:
     """

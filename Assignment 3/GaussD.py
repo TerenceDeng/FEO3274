@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.matlib
+from scipy.stats import multivariate_normal
 
 class GaussD:
     """
@@ -54,7 +55,10 @@ class GaussD:
     
     def init(self):
         pass
-    
+    def prob(self,X):
+        p = multivariate_normal(self.means, self.cov,1)
+        pd = p.pdf(X)
+        return pd
     def logprob(self):
         pass
     
