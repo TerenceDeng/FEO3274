@@ -126,7 +126,7 @@ def show_cepstrograms(color_min_rel=1e6):
     
     t_end=int(len(woman_x)/woman_fs);
     features_mfcc = mfcc(woman_x, woman_fs); # default windows of 25ms and fft of 512.
-    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    features_mfcc_norm = zscore(features_mfcc, axis=0, ddof=1) #Normalize
     t=np.linspace(0,t_end,np.shape(features_mfcc)[0]);
     plt.figure(figsize=(14, 7))#20*np.log10(Sxx[1:])
     plt.pcolormesh(t, np.arange(np.shape(features_mfcc)[1]),features_mfcc_norm.T)
@@ -138,7 +138,7 @@ def show_cepstrograms(color_min_rel=1e6):
     
     t_end=int(len(music_x)/music_fs);
     features_mfcc = mfcc(music_x, music_fs);
-    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    features_mfcc_norm = zscore(features_mfcc, axis=0, ddof=1) #Normalize
     t=np.linspace(0,t_end,np.shape(features_mfcc)[0]);
     plt.figure(figsize=(14, 7))#20*np.log10(Sxx[1:])
     plt.pcolormesh(t, np.arange(np.shape(features_mfcc)[1]),features_mfcc_norm.T)
@@ -150,7 +150,7 @@ def show_cepstrograms(color_min_rel=1e6):
     
     t_end=int(len(male_x)/male_fs);
     features_mfcc = mfcc(male_x, male_fs);
-    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    features_mfcc_norm = zscore(features_mfcc, axis=0, ddof=1) #Normalize
     t=np.linspace(0,t_end,np.shape(features_mfcc)[0]);
     plt.figure(figsize=(14, 7))#20*np.log10(Sxx[1:])
     plt.pcolormesh(t, np.arange(np.shape(features_mfcc)[1]),features_mfcc_norm.T)
@@ -167,7 +167,7 @@ def show_corr(nfft=1024):
     f, t, Sxx = signal.spectrogram(woman_x, woman_fs,window=signal.windows.hamming(nfft),noverlap=nfft/2)
     corr_matrix_spectrogram=np.corrcoef(np.log10(Sxx));
     features_mfcc = mfcc(woman_x, woman_fs); # default windows of 25ms and fft of 512.
-    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
+    features_mfcc_norm = zscore(features_mfcc, axis=0, ddof=1) #Normalize
     corr_matrix_cepstogram=np.corrcoef(features_mfcc_norm.T);
     # plt.figure()
     # plt.pcolormesh(f,f,corr_matrix_spectrogram);
@@ -194,9 +194,11 @@ def show_corr(nfft=1024):
     
 def get_features_with_dynamics(x,fs,N=2):
     features_mfcc = mfcc(x, fs);
-    features_mfcc_norm = zscore(features_mfcc, axis=1, ddof=1) #Normalize
-    features_mfcc_norm_d1 = delta(features_mfcc_norm, N)
-    features_mfcc_norm_d2 = delta(features_mfcc_norm_d1, N)
+    features_mfcc_d1 = delta(features_mfcc, N)
+    features_mfcc_d2 = delta(features_mfcc_d1, N)
+    features_mfcc_norm = zscore(features_mfcc, axis=0, ddof=1) #Normalize
+    features_mfcc_norm_d1 = zscore(features_mfcc_d1, axis=0, ddof=1) #Normalize
+    features_mfcc_norm_d2 = zscore(features_mfcc_d2, axis=0, ddof=1) #Normalize
     final_feature_vector = np.concatenate((features_mfcc_norm,features_mfcc_norm_d1,features_mfcc_norm_d2),axis=1)
     #Each row contains all the features
     return final_feature_vector;
@@ -209,4 +211,4 @@ if __name__ == "__main__":
     #show_spectrograms();
     show_cepstrograms();
     show_corr();
-    #test_final_feature_vector();
+    test_final_feature_vector();
