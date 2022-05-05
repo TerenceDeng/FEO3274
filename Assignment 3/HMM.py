@@ -125,8 +125,9 @@ class HMM:
     def setStationary(self):
         pass
 
-    def logprob(self):
-        pass
+    def logprob(self,obs,norm=True):
+        alphas, cs =self.forward(obs, norm=norm)
+        return np.sum(np.log(cs))
 
     def adaptStart(self):
         pass

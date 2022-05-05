@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-##To test that it works with discrete distributions we use excercise 5.2 from book
+##To test that it works with discrete distributions we use excercise 5.2 from book. Also checking infinite HMM
 
 
 mc1 = MarkovChain( np.array( [ 0.5, 0.5 ] ), np.array( [ [ 0.2, 0.8 ], [ 0.8, 0.2 ] ] ) ) 
@@ -73,3 +73,5 @@ h  = HMM( mc, [g1, g2])                # The HMM
 x=np.array([[-0.2,2.6,1.3]])
 
 alphas,cs=h.forward(x);
+
+print(h.logprob(x,norm=False)) #Shows that it gets the value mentioned in the book
