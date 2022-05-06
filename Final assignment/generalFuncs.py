@@ -19,7 +19,7 @@ Dataset_MFCC_folder="DatasetMFCC/"
 
 def read_elem_single(element, MFCC=True,train=True): #To read data using the lines from the train and  test .txt
     if MFCC:
-        return np.load(Dataset_MFCC_folder+"train/"+element) if train else np.load(Dataset_MFCC_folder+"test/"+element);
+        return np.load(Dataset_MFCC_folder+"train/"+element[:-3]+"npy") if train else np.load(Dataset_MFCC_folder+"test/"+element[:-3]+"npy");
     else:
         fs, x = wavfile.read(Dataset_base_folder+element)
         x=x/(2**15) #Assuming 16bit wav
@@ -46,7 +46,7 @@ def get_class_of_meas(elem):
     return elem;
 
 def select_class_of_meas(ds_elem_names,class_wanted):
-    ds_elem_names_class = [];
+    ds_elem_names_class = [i for i in ds_elem_names if os.path.dirname(i)==class_wanted]
     return ds_elem_names_class;
 
 MAX_NUM_WAVS_PER_CLASS = 2**27 - 1  # ~134M

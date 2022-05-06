@@ -81,31 +81,8 @@ class HMM:
                 X[:,i]=self.outputDistr[s].rand(1).ravel()
             else:
                 X=X[:,:i]
-
         return X,S
         
-    # def forward(self, obs):
-    #     if self.stateGen.is_finite:
-    #         A = self.stateGen.A[:,:-1]
-    #     else:
-    #         A = self.stateGen.A
-    #     p = prob(obs, self.outputDistr)
-    #     c = np.zeros(obs.shape[1])
-    #     alpha = np.zeros((obs.shape[1], A.shape[0]))
-    #     temp = np.zeros(A.shape[0])
-    #     c[0] = np.sum(self.stateGen.q*p[0])
-    #     alpha[0,:] = (self.stateGen.q*p[0])/c[0]
-
-    #     for t in range(1, obs.shape[1]):
-    #         for j in range(A.shape[0]):
-    #             temp[j] = alpha[t-1].dot(A[:,j]) * p[t, j]
-    #         c[t] = np.sum(temp)
-    #         alpha[t, :] = temp/c[t]
-
-    #     if self.stateGen.is_finite:
-    #         variable = alpha[-1].dot(self.stateGen.A[:, -1])
-    #         c = np.append(c, np.array([variable]))
-    #     return alpha, c
     
     def forward(self,obs,norm=True):
         res, scaled = self.prob(obs);
@@ -113,11 +90,126 @@ class HMM:
             scaled = res;
         return self.stateGen.forward(scaled)
     
+    def backward(self,obs,alphas=None,cs=None,norm=True):
+        if cs is None: #When cs are not given, it needs to calculate them
+            alphas,cs=self.forward(obs,norm=norm);
+        betas=alphas; #Just to check the other algorithms
+        return alphas,betas,cs
+    
     def viterbi(self):
         pass
     
-    def train(self):
-        pass
+    def calcabc(self, obs):
+        alphahats_list = []
+        betahats_list = []
+        cs_list = []
+        for i in range(len(obs)):
+            alphahats,betahats,cs = self.backward(obs[i])
+            alphahats_list += [alphahats]
+            betahats_list += [betahats]
+            cs_list += [cs]
+        return alphahats_list, betahats_list, cs_list
+    
+    def calcgammas(self, alphahats_list, betahats_list, cs_list, obs, uselog=True):
+        gammas = []
+        for i in range(len(obs)):
+            temp = []
+            for t in range(obs[i].shape[1]):
+                if uselog:
+                    temp += [np.log(alphahats_list[i][:,t])+np.log(betahats_list[i][:,t])+np.log(cs_list[i][t])]
+                else:
+                    temp += [alphahats_list[i][:,t]*betahats_list[i][:,t]*cs_list[i][t]]
+            gammas += [np.array(temp)]
+        #gammas = np.array(gammas)
+        return gammas
+    def calcinit(self, gammas, uselog=False):
+        init_gamma=np.asarray([i[0,:] for i in gammas]);
+        if uselog:
+            return np.sum(np.exp(init_gamma), axis = 0)/np.sum(np.exp(init_gamma))
+        else: 
+            return np.sum(init_gamma, axis = 0)/np.sum(init_gamma)
+        
+    def calcxi(self, alphahats_list, betahats_list, cs_list, obs, uselog=False):
+        xirbars = []
+        xirs = []
+        for i in range(len(obs)): 
+            if self.stateGen.is_finite:
+                xi = np.zeros((obs[i].shape[1], self.stateGen.A.shape[0], self.stateGen.A.shape[1]))
+            else:
+                xi = np.zeros((obs[i].shape[1]-1, self.stateGen.A.shape[0], self.stateGen.A.shape[1]))
+            p, scaled = self.prob(obs[i])
+            if uselog: 
+                xi = np.log(xi)
+                p, scaled = np.log(self.prob(obs[i]))
+            for t in range(obs[i].shape[1]-1):
+                for j in range(self.stateGen.A.shape[0]):
+                    for k in range(self.stateGen.A.shape[0]):
+                        if uselog:
+                            #print(str(t)+ "" + str(j)+ "" + str(k)+ "")
+                            xi[t, j, k] = np.log(alphahats_list[i][j][t])+np.log(self.stateGen.A[j,k])+scaled[k][t+1]+np.log(betahats_list[i][k][t+1])
+                        else:
+                            xi[t, j, k] = alphahats_list[i][j][t]*self.stateGen.A[j,k]*scaled[k][t+1]*betahats_list[i][k][t+1]
+            if self.stateGen.is_finite:
+                for j in range(self.stateGen.A.shape[0]):
+                    if uselog:
+                        xi[-1][j][-1] = np.log(alphahats_list[i][-1][j])+np.log(betahats_list[i][-1][j])+np.log(cs_list[i][-1])
+                    else:
+                        xi[-1][j][-1] = alphahats_list[i][-1][j]*betahats_list[i][-1][j]*cs_list[i][-1]
+                
+            if uselog:
+                xi = np.exp(xi)
+            xirs += [xi]
+            xirbars += [np.sum(xi, axis = 0)]
+            
+        xibar = np.sum(xirbars, axis = 0)
+        return xibar
+    
+    def baum_welch(self,obs,niter,uselog=True,history=True):
+
+        history=[];
+        for it in range(niter):
+            alphahats_list, betahats_list, cs_list = self.calcabc(obs) #from Assignment 3 and 4
+            gammas = self.calcgammas(alphahats_list, betahats_list, cs_list, obs, uselog) #alpha*beta*c
+            newpi = self.calcinit(gammas, uselog) #average of gammas[:,0]
+            xibar = self.calcxi(alphahats_list, betahats_list, cs_list, obs, uselog) #page 132
+            if uselog: 
+                xibar = np.exp(xibar)
+                
+            newA = np.array([i/np.sum(i) for i in xibar]) #xibar/sum_k(xibar); page 130
+            
+            if uselog: 
+                gammas = [np.exp(i) for i in gammas]
+
+            summ = np.zeros((len(self.outputDistr), obs[0].shape[0]))
+            sumc = np.zeros((len(self.outputDistr), obs[0].shape[0], obs[0].shape[0]))
+            sumg = np.zeros((len(self.outputDistr)))
+
+            for i in range(len(obs)):
+                for t in range(obs[i].shape[0]): 
+                    for j in range(len(self.outputDistr)):
+                        summ[j] += obs[i][:,t]*gammas[i][t][j]
+                        sumg[j] += gammas[i][t][j]
+                        temp = obs[i][:,t] - np.atleast_2d(self.outputDistr[j].means);
+                        sumc[j] += gammas[i][t][j]*(temp.T.dot(temp))
+                        
+            newmean = np.zeros(summ.shape)
+            newcov = np.zeros(sumc.shape)
+            for i in range(newmean.shape[0]):
+                if sumg[i] > 0:
+                    newmean[i] = summ[i]/sumg[i]
+                    newcov[i] = sumc[i]/sumg[i]
+                else:
+                    newmean[i] = 0
+                    newcov[i]  = 0
+            
+            #update all variables
+            self.stateGen.q = newpi
+            self.stateGen.A = newA
+            newoutputDistr = [GaussD( newmean[i], cov=newcov[i]) for i in range(len(self.outputDistr))]
+            self.outputDistr = newoutputDistr
+            if history:
+                history.append(np.mean([np.exp(self.logprob(obs[i])) for i in range(obs.shape[0])]))
+        return history;
 
     def stateEntropyRate(self):
         pass

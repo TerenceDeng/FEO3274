@@ -39,23 +39,23 @@ Dataset_base_folder="Dataset/train/audio/"
 Dataset_MFCC_folder="DatasetMFCC/"
 INCLUDE_DYNAMICS=False;
 
-# ftrain = open('training.txt', 'r')
-# lines = ftrain.readlines()
-# for line in lines:
-#     data_name=line[:-1]; #Remove eol
-#     fs,x = read_wav(Dataset_base_folder+data_name)
-#     features = get_features_with_dynamics(x,fs) if INCLUDE_DYNAMICS else get_features(x,fs);
-#     Path(Dataset_MFCC_folder+"train/"+os.path.dirname(data_name)).mkdir(parents=True, exist_ok=True)
-#     np.save(Dataset_MFCC_folder+"train/"+data_name[:-4],features)
+ftrain = open('training.txt', 'r')
+lines = ftrain.readlines()
+for line in lines:
+    data_name=line[:-1]; #Remove eol
+    fs,x = read_wav(Dataset_base_folder+data_name)
+    features = get_features_with_dynamics(x,fs) if INCLUDE_DYNAMICS else get_features(x,fs);
+    Path(Dataset_MFCC_folder+"train/"+os.path.dirname(data_name)).mkdir(parents=True, exist_ok=True)
+    np.save(Dataset_MFCC_folder+"train/"+data_name[:-4],features.T)
     
-# ftrain = open('test.txt', 'r')
-# lines = ftrain.readlines()
-# for line in lines:
-#     data_name=line[:-1]; #Remove eol
-#     fs,x = read_wav(Dataset_base_folder+data_name)
-#     features = get_features_with_dynamics(x,fs) if INCLUDE_DYNAMICS else get_features(x,fs);
-#     Path(Dataset_MFCC_folder+"test/"+os.path.dirname(data_name)).mkdir(parents=True, exist_ok=True)
-#     np.save(Dataset_MFCC_folder+"test/"+data_name[:-4],features)
+ftrain = open('test.txt', 'r')
+lines = ftrain.readlines()
+for line in lines:
+    data_name=line[:-1]; #Remove eol
+    fs,x = read_wav(Dataset_base_folder+data_name)
+    features = get_features_with_dynamics(x,fs) if INCLUDE_DYNAMICS else get_features(x,fs);
+    Path(Dataset_MFCC_folder+"test/"+os.path.dirname(data_name)).mkdir(parents=True, exist_ok=True)
+    np.save(Dataset_MFCC_folder+"test/"+data_name[:-4],features.T)
     
 #This one is to generate all togheter dataset to do cross validation afterwards
 ftrain = open('training.txt', 'r')
@@ -65,7 +65,7 @@ for line in lines:
     fs,x = read_wav(Dataset_base_folder+data_name)
     features = get_features_with_dynamics(x,fs) if INCLUDE_DYNAMICS else get_features(x,fs);
     Path(Dataset_MFCC_folder+"whole/"+os.path.dirname(data_name)).mkdir(parents=True, exist_ok=True)
-    np.save(Dataset_MFCC_folder+"whole/"+data_name[:-4],features)
+    np.save(Dataset_MFCC_folder+"whole/"+data_name[:-4],features.T)
     
 ftrain = open('test.txt', 'r')
 lines = ftrain.readlines()
@@ -74,4 +74,4 @@ for line in lines:
     fs,x = read_wav(Dataset_base_folder+data_name)
     features = get_features_with_dynamics(x,fs) if INCLUDE_DYNAMICS else get_features(x,fs);
     Path(Dataset_MFCC_folder+"whole/"+os.path.dirname(data_name)).mkdir(parents=True, exist_ok=True)
-    np.save(Dataset_MFCC_folder+"whole/"+data_name[:-4],features)
+    np.save(Dataset_MFCC_folder+"whole/"+data_name[:-4],features.T)

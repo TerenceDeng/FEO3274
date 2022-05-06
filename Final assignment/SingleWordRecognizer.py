@@ -23,15 +23,15 @@ class SingleWordRecognizer:
         q[0]=1;
         mc = MarkovChain( q, A ) 
         if prob_emission_type=="Gaussian":
-            B = [GaussD( np.repeat([0],5), stdevs=1 ) for i in range(n_states)]  # Distribution for all states
+            B = [GaussD( np.repeat([0],feature_size), stdevs=1 ) for i in range(n_states)]  # Distribution for all states
             
         self.HMM = HMM(mc, B)
-    def train(self,ds): #ds should be a list of runs. 
-        mean_length=np.mean([i.shape[0] for i in ds]);
-        feature_size=ds[0].shape[1];
+    def train(self,ds,niter=10): #ds should be a list of runs. 
+        mean_length=int(np.mean([i.shape[1] for i in ds]));
+        feature_size=ds[0].shape[0];
         self.initialize(mean_length,feature_size);
-        #history=self.HMM.BaumWelch(eval_p=True,tol=1e-6)
-        #return history;
+        history=self.HMM.baum_welch(ds,niter,history=True)
+        return history;
     def evaluate(self,data,norm=False):
         if isinstance(data,list):
             res=[];
@@ -53,17 +53,17 @@ class SingleWordRecognizer:
         np.save(dir_to_save+self.word+"_A",self.HMM.stateGen.A)
         np.save(dir_to_save+self.word+"_q",self.HMM.stateGen.q)
         means= [i.means for i in self.HMM.outputDistr]
-        variances= [i.cov.diagonal() for i in self.HMM.outputDistr] #Assuming diagonal cov matrix
+        covs= [i.cov for i in self.HMM.outputDistr] #Assuming diagonal cov matrix
         np.save(dir_to_save+self.word+"_B_means",means)
-        np.save(dir_to_save+self.word+"_B_variances",variances)
+        np.save(dir_to_save+self.word+"_B_covs",covs,allow_pickle=True)
         
     def load_model(self,dir_to_load):
         A=np.load(dir_to_load+self.word+"_A.npy")
         q=np.load(dir_to_load+self.word+"_q.npy")
         means=np.load(dir_to_load+self.word+"_B_means.npy")
-        variances=np.load(dir_to_load+self.word+"_B_variances.npy")
+        covs=np.load(dir_to_load+self.word+"_B_covs.npy")
         mc = MarkovChain( q, A ) 
-        B = [GaussD( means[i], cov=np.diag(variances[i]) ) for i in range(len(means))]  # Distribution for all states
+        B = [GaussD( means[i], cov=covs[i] ) for i in range(len(means))]  # Distribution for all states
         self.HMM = HMM(mc, B)
         
         

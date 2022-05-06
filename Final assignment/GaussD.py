@@ -30,7 +30,7 @@ class GaussD:
             self.stdevs = np.sqrt(np.abs(v))
             self.variance = self.stdevs**2
     
-   
+        self.p = multivariate_normal(self.means, self.cov,1)
     def rand(self, nData):
         """
         R=rand(pD,nData) returns random vectors drawn from a single GaussD object.
@@ -56,8 +56,8 @@ class GaussD:
     def init(self):
         pass
     def prob(self,X):
-        p = multivariate_normal(self.means, self.cov,1)
-        pd = p.pdf(X)
+        
+        pd = self.p.pdf(X)
         return pd
     def logprob(self):
         pass
