@@ -151,7 +151,6 @@ class HMM:
                 for j in range(self.stateGen.A.shape[0]):
                     for k in range(self.stateGen.A.shape[0]):
                         if uselog:
-                            #print(str(t)+ "" + str(j)+ "" + str(k)+ "")
                             xi[t, j, k] = np.log(alphahats_list[i][j][t])+np.log(self.stateGen.A[j,k])+p[k][t+1]+np.log(betahats_list[i][k][t+1])
                         else:
                             xi[t, j, k] = alphahats_list[i][j][t]*self.stateGen.A[j,k]*p[k][t+1]*betahats_list[i][k][t+1]
@@ -243,8 +242,7 @@ class HMM:
         N = len(self.outputDistr)
         res = np.zeros((N, T))
         for i in range(N):
-            for j in range(T):
-                res[i,j] = self.outputDistr[i].prob(x[:,j])
+            res[i,:] = self.outputDistr[i].prob(x[:,:].T)
         scaled = np.zeros(res.shape)
         for i in range(scaled.shape[0]):
             for j in range(scaled.shape[1]):
@@ -283,17 +281,17 @@ def test_learning():
     # then refine these iteratively
     qstar = np.array([0.8, 0.2])
     Astar = np.array([[0.5, 0.5], [0.5, 0.5]])
-    
+    mc2 = MarkovChain( qstar, Astar ) 
     meansstar = np.array( [[0, 0], [0, 0]] )
     
     covsstar  = np.array( [[[1, 0],[0, 1]], 
                            [[1, 0],[0,1]]] )
     
-    Bstar = np.array([multigaussD(meansstar[0], covsstar[0]),
-                      multigaussD(meansstar[1], covsstar[1])])
+    g1_2 = GaussD( means=meansstar[0], cov=covsstar[0] )   # Distribution for state = 1
+    g2_2 = GaussD(means=meansstar[1], cov=covsstar[1] )   # Distribution for state = 1
     
     
-    hm_learn = HMM(qstar, Astar, Bstar)
+    hm_learn  = HMM(mc2,[g1_2,g2_2])
     
     print("Running the Baum Welch Algorithm...")
     hist=hm_learn.baum_welch(obs, 20, uselog=False)
