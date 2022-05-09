@@ -88,6 +88,7 @@ class HMM:
         res, scaled = self.prob(obs);
         if not norm:
             scaled = res;
+        self.res=res;self.scaled=scaled; #To avoid recalculations of this, which is expensive!
         return self.stateGen.forward(scaled)
     
     def backward(self,obs,alphas=None,cs=None,norm=True):
@@ -103,8 +104,10 @@ class HMM:
         alphahats_list = []
         betahats_list = []
         cs_list = []
+        self.res_list=[];self.scaled_list=[]
         for i in range(len(obs)):
             alphahats,betahats,cs = self.backward(obs[i])
+            self.res_list.append(self.res);self.scaled_list.append(self.scaled);
             alphahats_list += [alphahats]
             betahats_list += [betahats]
             cs_list += [cs]
@@ -137,18 +140,21 @@ class HMM:
                 xi = np.zeros((obs[i].shape[1], self.stateGen.A.shape[0], self.stateGen.A.shape[1]))
             else:
                 xi = np.zeros((obs[i].shape[1]-1, self.stateGen.A.shape[0], self.stateGen.A.shape[1]))
-            p, scaled = self.prob(obs[i])
+            
             if uselog: 
                 xi = np.log(xi)
-                p, scaled = np.log(self.prob(obs[i]))
+                p=np.log(self.res_list[i]);scaled=np.log(self.scaled_list[i])
+                #p, scaled = np.log(self.prob(obs[i])) #Saved in the other variables because it was calculated before.
+            else:
+                p=self.res_list[i];scaled=self.scaled_list[i]
             for t in range(obs[i].shape[1]-1):
                 for j in range(self.stateGen.A.shape[0]):
                     for k in range(self.stateGen.A.shape[0]):
                         if uselog:
                             #print(str(t)+ "" + str(j)+ "" + str(k)+ "")
-                            xi[t, j, k] = np.log(alphahats_list[i][j][t])+np.log(self.stateGen.A[j,k])+scaled[k][t+1]+np.log(betahats_list[i][k][t+1])
+                            xi[t, j, k] = np.log(alphahats_list[i][j][t])+np.log(self.stateGen.A[j,k])+p[k][t+1]+np.log(betahats_list[i][k][t+1])
                         else:
-                            xi[t, j, k] = alphahats_list[i][j][t]*self.stateGen.A[j,k]*scaled[k][t+1]*betahats_list[i][k][t+1]
+                            xi[t, j, k] = alphahats_list[i][j][t]*self.stateGen.A[j,k]*p[k][t+1]*betahats_list[i][k][t+1]
             if self.stateGen.is_finite:
                 for j in range(self.stateGen.A.shape[0]):
                     if uselog:
@@ -164,6 +170,29 @@ class HMM:
         xibar = np.sum(xirbars, axis = 0)
         return xibar
     
+    def calcmeansandcov(self,obs,gammas):
+        summ = np.zeros((len(self.outputDistr), obs[0].shape[0]))
+        sumc = np.zeros((len(self.outputDistr), obs[0].shape[0], obs[0].shape[0]))
+        sumg = np.zeros((len(self.outputDistr)))
+
+        for i in range(len(obs)):
+            for t in range(obs[i].shape[0]): 
+                for j in range(len(self.outputDistr)):
+                    summ[j] += obs[i][:,t]*gammas[i][t][j]
+                    sumg[j] += gammas[i][t][j]
+                    temp = obs[i][:,t] - np.atleast_2d(self.outputDistr[j].means);
+                    sumc[j] += gammas[i][t][j]*(temp.T.dot(temp))
+                    
+        newmean = np.zeros(summ.shape)
+        newcov = np.zeros(sumc.shape)
+        for i in range(newmean.shape[0]):
+            if sumg[i] > 0:
+                newmean[i] = summ[i]/sumg[i]
+                newcov[i] = sumc[i]/sumg[i]
+            else:
+                newmean[i] = 0
+                newcov[i]  = 0
+        return newmean,newcov
     def baum_welch(self,obs,niter,uselog=True,history=True):
 
         history=[];
@@ -180,27 +209,7 @@ class HMM:
             if uselog: 
                 gammas = [np.exp(i) for i in gammas]
 
-            summ = np.zeros((len(self.outputDistr), obs[0].shape[0]))
-            sumc = np.zeros((len(self.outputDistr), obs[0].shape[0], obs[0].shape[0]))
-            sumg = np.zeros((len(self.outputDistr)))
-
-            for i in range(len(obs)):
-                for t in range(obs[i].shape[0]): 
-                    for j in range(len(self.outputDistr)):
-                        summ[j] += obs[i][:,t]*gammas[i][t][j]
-                        sumg[j] += gammas[i][t][j]
-                        temp = obs[i][:,t] - np.atleast_2d(self.outputDistr[j].means);
-                        sumc[j] += gammas[i][t][j]*(temp.T.dot(temp))
-                        
-            newmean = np.zeros(summ.shape)
-            newcov = np.zeros(sumc.shape)
-            for i in range(newmean.shape[0]):
-                if sumg[i] > 0:
-                    newmean[i] = summ[i]/sumg[i]
-                    newcov[i] = sumc[i]/sumg[i]
-                else:
-                    newmean[i] = 0
-                    newcov[i]  = 0
+            newmean,newcov = self.calcmeansandcov(obs,gammas)
             
             #update all variables
             self.stateGen.q = newpi
@@ -241,3 +250,76 @@ class HMM:
             for j in range(scaled.shape[1]):
                 scaled[i, j] = res[i,j]/np.amax(res[:,j])
         return res, scaled
+    
+    
+    
+def test_learning():
+        # Define a HMM
+    q = np.array([0.8, 0.2])
+    A = np.array([[0.95, 0.05],
+                  [0.30, 0.70]])
+    
+    means = np.array( [[0, 0], [2, 2]] )
+    covs  = np.array( [[[1, 2],[2, 4]], 
+                       [[1, 0],[0, 3]]] )
+    mc = MarkovChain( q, A ) 
+    g1 = GaussD( means=means[0], cov=covs[0] )   # Distribution for state = 1
+    g2 = GaussD(means=means[1], cov=covs[1] )   # Distribution for state = 1
+    
+    hm  = HMM(mc,[g1,g2])
+    obs = np.array([ hm.rand(100)[0] for _ in range(10) ])
+    
+    print('True HMM parameters:')
+    print('q:')
+    print(q)
+    print('A:')
+    print(A)
+    print('B: means, covariances')
+    print(means)
+    print(covs)
+    
+    # Estimate the HMM parameters from the obseved samples
+    # Start by. assigning initial HMM parameter values,
+    # then refine these iteratively
+    qstar = np.array([0.8, 0.2])
+    Astar = np.array([[0.5, 0.5], [0.5, 0.5]])
+    
+    meansstar = np.array( [[0, 0], [0, 0]] )
+    
+    covsstar  = np.array( [[[1, 0],[0, 1]], 
+                           [[1, 0],[0,1]]] )
+    
+    Bstar = np.array([multigaussD(meansstar[0], covsstar[0]),
+                      multigaussD(meansstar[1], covsstar[1])])
+    
+    
+    hm_learn = HMM(qstar, Astar, Bstar)
+    
+    print("Running the Baum Welch Algorithm...")
+    hist=hm_learn.baum_welch(obs, 20, uselog=False)
+    
+    print('True HMM parameters:')
+    print('q:')
+    print(hm_learn.stateGen.q)
+    print('A:')
+    print(hm_learn.stateGen.A)
+    print('B: means, covariances of 1')
+    print(hm_learn.outputDistr[0].means)
+    print(hm_learn.outputDistr[0].means)
+    
+    hm_learn2 = HMM(qstar, Astar, Bstar)
+    
+    print("Running the Baum Welch Algorithm with logs...")
+    hist=hm_learn2.baum_welch(obs, 20, prin=1, uselog=True)
+    print('True HMM parameters:')
+    print('q:')
+    print(hm_learn2.stateGen.q)
+    print('A:')
+    print(hm_learn2.stateGen.A)
+    print('B: means, covariances of 1')
+    print(hm_learn2.outputDistr[0].means)
+    print(hm_learn2.outputDistr[0].means)
+if __name__ == "__main__":
+    #test load and save of the model.
+    test_learning();
+    

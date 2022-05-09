@@ -67,8 +67,7 @@ class SingleWordRecognizer:
         self.HMM = HMM(mc, B)
         
         
-if __name__ == "__main__":
-    #test load and save of the model.
+def test_load_and_save():
     word="yes";
     a=SingleWordRecognizer(word);
     mc = MarkovChain( np.array( [ 0.5, 0.5 ] ), np.array( [ [ 0.2, 0.8 ], [ 0.8, 0.2 ] ] ) ) 
@@ -78,3 +77,7 @@ if __name__ == "__main__":
     a.save_model("Models/")
     a.HMM = None;
     a.load_model("Models/")
+if __name__ == "__main__":
+    #test load and save of the model.
+    test_load_and_save();
+    
