@@ -144,6 +144,33 @@ class MarkovChain:
             
         return alpha, c
 
+    def backward(self, obs):
+        if self.finite:
+            A = self.A[:,:-1]
+        else:
+            A = self.A
+            cs= np.zeros(obs.shape[1])
+            beta = np.zeros((obs.shape[0], self.A.shape[0]))
+            temp = np.zeros(self.A.shape[0])
+
+        for t in range(obs.shape[0]-2, -1, -1):
+            temp = np.zeros(A.shape[0])
+            for i in range(A.shape[0]):                
+                for j in range(A.shape[0]):
+                    temp[i] += A[i,j]*obs[t+1,j]*beta[t+1, j]
+            beta[t] = temp/cs[t]
+
+        if self.finite:
+            temp = self.A[:,-1]
+            temp = temp/(cs[-1]*cs[-2])
+        else:
+            temp = np.ones((self.A.shape[0]))
+            temp = temp/cs[-1]
+        beta[-1] = temp
+        return beta, cs
+
+
+
     def finiteDuration(self):
         pass
     

@@ -1,4 +1,7 @@
+from turtle import backward
 import numpy as np
+import scipy
+from scipy import stats
 from DiscreteD import DiscreteD
 from GaussD import GaussD
 from MarkovChain import MarkovChain
@@ -112,7 +115,10 @@ class HMM:
         if not norm:
             scaled = res;
         return self.stateGen.forward(scaled)
+
     
+    
+
     def viterbi(self):
         pass
     
@@ -149,3 +155,6 @@ class HMM:
             for j in range(scaled.shape[1]):
                 scaled[i, j] = res[i,j]/np.amax(res[:,j])
         return res, scaled
+
+
+
