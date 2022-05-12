@@ -215,7 +215,7 @@ class HMM:
     def baum_welch(self, obs, niter, uselog=False, prin=0, scaled = True):     
         A = self.A
         B = self.B
-        
+        hist=[]
         for it in range(niter):
             alphahats, betahats, cs = self.calcabc(obs) #from Assignment 3 and 4
             gammas = self.calcgammas(alphahats, betahats, cs, obs, uselog) #alpha*beta*c
@@ -256,9 +256,24 @@ class HMM:
             self.A = newA
             newB = np.array([multigaussD(newmean[i], newcov[i]) for i in range(B.shape[0])])
             self.B = newB
-        if prin:    
-            self.printoutput(newmean, newcov)   
-         
+            if prin:    
+                 p_x_list=np.asarray([np.sum(np.log(i)) for i in cs]);
+                 hist.append(np.mean(np.exp(p_x_list))) 
+                 print(hist[-1])
+                 print('Est HMM parameters:')
+                 print('q:')
+                 print(self.q)
+                 print('A:')
+                 print(self.A)
+                 print('B1: Mean')
+                 print(self.B[0].mean)
+                 print('B1: Cov')
+                 print(self.B[0].cov)
+                 print('B2: Mean')
+                 print(self.B[1].mean)
+                 print('B2: Cov')
+                 print(self.B[1].cov)
+        return hist
 '''
 Multivariate Gaussian Distribution Class
 '''
@@ -329,8 +344,10 @@ B = np.array([multigaussD(means[0], covs[0]),
 
 
 hm  = HMM(q, A, B)
-obs = np.array([ hm.rand(100)[0] for _ in range(10) ])
+#obs = np.array([ hm.rand(100)[0] for _ in range(10) ])
 
+#np.save("../../Final assignment/testobs.npy",obs)
+obs = np.load("../../Final assignment/testobs.npy")
 print('True HMM parameters:')
 print('q:')
 print(q)
@@ -346,7 +363,7 @@ print(covs)
 qstar = np.array([0.8, 0.2])
 Astar = np.array([[0.5, 0.5], [0.5, 0.5]])
 
-meansstar = np.array( [[0, 0], [0, 0]] )
+meansstar = np.array( [[0, 0], [2, 2]] )
 
 covsstar  = np.array( [[[1, 0],[0, 1]], 
                        [[1, 0],[0,1]]] )
@@ -358,11 +375,25 @@ Bstar = np.array([multigaussD(meansstar[0], covsstar[0]),
 hm_learn = HMM(qstar, Astar, Bstar)
 
 print("Running the Baum Welch Algorithm...")
-hm_learn.baum_welch(obs, 20, prin=1, uselog=False)
+hist=hm_learn.baum_welch(obs, 20, prin=1, uselog=False)
+print(hist)
+print('Est HMM parameters:')
+print('q:')
+print(hm_learn.q)
+print('A:')
+print(hm_learn.A)
+print('B1: Mean')
+print(hm_learn.B[0].mean)
+print('B1: Cov')
+print(hm_learn.B[0].cov)
+print('B2: Mean')
+print(hm_learn.B[1].mean)
+print('B2: Cov')
+print(hm_learn.B[1].cov)
 
 # Test the Viterbi algorithm
-print("Running the Viterbi Algorithm...")
-obs, true_states = hm.rand(100)
+# print("Running the Viterbi Algorithm...")
+# obs, true_states = hm.rand(100)
 
-print("True States:\n",true_states)
-print("Predicted States:\n", hm_learn.viterbi(obs))
+#print("True States:\n",true_states)
+#print("Predicted States:\n", hm_learn.viterbi(obs))

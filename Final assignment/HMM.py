@@ -84,29 +84,31 @@ class HMM:
         return X,S
         
     
-    def forward(self,obs,norm=True):
+    def forward(self,obs,norm=False):
         res, scaled = self.prob(obs);
         if not norm:
             scaled = res;
         self.res=res;self.scaled=scaled; #To avoid recalculations of this, which is expensive!
         return self.stateGen.forward(scaled)
     
-    def backward(self,obs,alphas=None,cs=None,norm=True):
-        if cs is None: #When cs are not given, it needs to calculate them
-            alphas,cs=self.forward(obs,norm=norm);
-        betas=alphas; #Just to check the other algorithms
-        return alphas,betas,cs
-    
+    def backward(self, obs, scale = False):
+        p, scaled =self.prob(obs);
+        
+        if not scale:
+            scaled = p;
+        self.res=p;self.scaled=scaled; #To avoid recalculations of this, which is expensive!
+        
+        return self.stateGen.backward(scaled)
     def viterbi(self):
         pass
     
-    def calcabc(self, obs):
+    def calcabc(self, obs,scale=True):
         alphahats_list = []
         betahats_list = []
         cs_list = []
         self.res_list=[];self.scaled_list=[]
         for i in range(len(obs)):
-            alphahats,betahats,cs = self.backward(obs[i])
+            alphahats,betahats,cs = self.backward(obs[i],scale=scale)
             self.res_list.append(self.res);self.scaled_list.append(self.scaled);
             alphahats_list += [alphahats]
             betahats_list += [betahats]
@@ -132,7 +134,7 @@ class HMM:
         else: 
             return np.sum(init_gamma, axis = 0)/np.sum(init_gamma)
         
-    def calcxi(self, alphahats_list, betahats_list, cs_list, obs, uselog=False):
+    def calcxi(self, alphahats_list, betahats_list, cs_list, obs, uselog=False,scale=True):
         xirbars = []
         xirs = []
         for i in range(len(obs)): 
@@ -147,13 +149,14 @@ class HMM:
                 #p, scaled = np.log(self.prob(obs[i])) #Saved in the other variables because it was calculated before.
             else:
                 p=self.res_list[i];scaled=self.scaled_list[i]
+            pX=scaled if scale else p;
             for t in range(obs[i].shape[1]-1):
                 for j in range(self.stateGen.A.shape[0]):
                     for k in range(self.stateGen.A.shape[0]):
                         if uselog:
-                            xi[t, j, k] = np.log(alphahats_list[i][j][t])+np.log(self.stateGen.A[j,k])+p[k][t+1]+np.log(betahats_list[i][k][t+1])
+                            xi[t, j, k] = np.log(alphahats_list[i][j][t])+np.log(self.stateGen.A[j,k])+pX[k][t+1]+np.log(betahats_list[i][k][t+1])
                         else:
-                            xi[t, j, k] = alphahats_list[i][j][t]*self.stateGen.A[j,k]*p[k][t+1]*betahats_list[i][k][t+1]
+                            xi[t, j, k] = alphahats_list[i][j][t]*self.stateGen.A[j,k]*pX[k][t+1]*betahats_list[i][k][t+1]
             if self.stateGen.is_finite:
                 for j in range(self.stateGen.A.shape[0]):
                     if uselog:
@@ -175,7 +178,7 @@ class HMM:
         sumg = np.zeros((len(self.outputDistr)))
 
         for i in range(len(obs)):
-            for t in range(obs[i].shape[0]): 
+            for t in range(obs[i].shape[1]): 
                 for j in range(len(self.outputDistr)):
                     summ[j] += obs[i][:,t]*gammas[i][t][j]
                     sumg[j] += gammas[i][t][j]
@@ -192,14 +195,14 @@ class HMM:
                 newmean[i] = 0
                 newcov[i]  = 0
         return newmean,newcov
-    def baum_welch(self,obs,niter,uselog=True,history=True):
+    def baum_welch(self,obs,niter,uselog=True,history=True,scale=True):
 
-        history=[];
+        hist=[];
         for it in range(niter):
-            alphahats_list, betahats_list, cs_list = self.calcabc(obs) #from Assignment 3 and 4
+            alphahats_list, betahats_list, cs_list = self.calcabc(obs,scale=scale) #from Assignment 3 and 4
             gammas = self.calcgammas(alphahats_list, betahats_list, cs_list, obs, uselog) #alpha*beta*c
             newpi = self.calcinit(gammas, uselog) #average of gammas[:,0]
-            xibar = self.calcxi(alphahats_list, betahats_list, cs_list, obs, uselog) #page 132
+            xibar = self.calcxi(alphahats_list, betahats_list, cs_list, obs, uselog,scale=scale) #page 132
             if uselog: 
                 xibar = np.exp(xibar)
                 
@@ -216,8 +219,12 @@ class HMM:
             newoutputDistr = [GaussD( newmean[i], cov=newcov[i]) for i in range(len(self.outputDistr))]
             self.outputDistr = newoutputDistr
             if history:
-                history.append(np.mean([np.exp(self.logprob(obs[i])) for i in range(obs.shape[0])]))
-        return history;
+                p_x_list=np.asarray([np.sum(np.log(i)) for i in cs_list]);
+                hist.append(np.mean(np.exp(p_x_list)))
+                #hist.append(np.median(p_x_list))
+               # if np.median(p_x_list) > 0:
+                 #   print("Weird!")
+        return hist;
 
     def stateEntropyRate(self):
         pass
@@ -241,16 +248,102 @@ class HMM:
         T = x.shape[1]
         N = len(self.outputDistr)
         res = np.zeros((N, T))
+        
         for i in range(N):
-            res[i,:] = self.outputDistr[i].prob(x[:,:].T)
+            res[i,:] = self.outputDistr[i].prob(x[:,:].T).flatten()
         scaled = np.zeros(res.shape)
         for i in range(scaled.shape[0]):
             for j in range(scaled.shape[1]):
                 scaled[i, j] = res[i,j]/np.amax(res[:,j])
         return res, scaled
     
+def test_forward():
+    u1=0;u2=3;std1=1;std2=2;
+    mc = MarkovChain( np.array( [ 0.75, 0.25 ] ), np.array( [ [ 0.99, 0.01 ], [ 0.03, 0.97 ] ] ) ) 
+    g1 = GaussD( means=[u1], stdevs=[std1] )   # Distribution for state = 1
+    g2 = GaussD( means=[u2], stdevs=[std2] )   # Distribution for state = 2
+    h  = HMM( mc, [g1, g2])                # The HMM
+    x,s = h.rand(10)
+    
+    alphas,cs=h.forward(x);
+    p1=np.prod(cs);
+    
+    #This checked that simple gaussian as emissor works too.
+    
+    ##Test of multiple gaussians:
+    u1=0;u2=1;std1=1;std2=2;
+    mc = MarkovChain( np.array( [ 0.75, 0.25 ] ), np.array( [ [ 0.99, 0.01 ], [ 0.03, 0.97 ] ] ) ) 
+    g1 = GaussD( means=[u1, u1], cov=np.asarray([[2,1],[1,4]]) )   # Distribution for state = 1
+    g2 = GaussD( means=[u2, u2], stdevs=np.asarray([[1,0],[0,1]]) )   # Distribution for state = 2
+    h  = HMM( mc, [g1, g2])                # The HMM
+    x,s = h.rand(5)
+    
+    alphas,cs=h.forward(x);
+    p1=np.prod(cs);
+    
+    ##Now the test of the book 
+    
+    u1=0;u2=3;std1=1;std2=2;
+    mc = MarkovChain( np.array( [ 1, 0 ] ), np.array( [ [ 0.9, 0.1,0 ], [ 0, 0.9, 0.1 ] ] ) ) 
+    g1 = GaussD( means=[u1], stdevs=[std1] )   # Distribution for state = 1
+    g2 = GaussD( means=[u2], stdevs=[std2] )   # Distribution for state = 2
+    h  = HMM( mc, [g1, g2])                # The HMM
+    
+    x=np.array([[-0.2,2.6,1.3]])
+    
+    alphas,cs=h.forward(x,norm=True);
+    print("For the example in the book:")
+    print("The alphas matrix when normalized gave us:")
+    print(alphas)
+    print("And the Cs normalized:")
+    print(cs)
+    alphas,cs=h.forward(x,norm=False);
+    print("And then when not normalized we get:")
+    print(cs)
+    print("Finally the logprob:")
+    print(h.logprob(x,norm=False)) #Shows that it gets the value mentioned in the book
     
     
+    ##To test that it works with discrete distributions we use excercise 5.2 from book. Also checking infinite HMM
+    
+    
+    mc1 = MarkovChain( np.array( [ 0.5, 0.5 ] ), np.array( [ [ 0.2, 0.8 ], [ 0.8, 0.2 ] ] ) ) 
+    mc2 = MarkovChain( np.array( [ 0.5, 0.5 ] ), np.array( [ [ 0.8, 0.2 ], [ 0.2, 0.8 ] ] ) ) 
+    
+    D1 = DiscreteD( [0.1,0.2,0.3,0.4] )   # Distribution for state = 1
+    D2 = DiscreteD( [0.4,0.3,0.2,0.1] )   # Distribution for state = 2
+    
+    h1  = HMM( mc1, [D1, D2])
+    h2  = HMM( mc2, [D1, D2])
+    
+    z=np.array([[3,1,4,2]])
+    
+    #In order for this one to work I had to:
+        #Create prob function in discrete D.
+        #Solved dimentions notations, sometimes it was called row when in our code was a column
+    alphas_1,cs_1=h1.forward(z,norm=False);
+    p1=np.prod(cs_1);
+    alphas_2,cs_2=h2.forward(z,norm=False);
+    p2=np.prod(cs_2);
+    print("-------------------------------------------------------")
+    print("To check that it works with discrete distributions and infinite HMM, we reproduced the problem 5.2 from the book and verified the results obtained: ")
+    print("For lambda1 the book says that P=" + "0.005704" + " and the obtained probability is " + str(p1))
+    print("For lambda2 the book says that P=" + "0.002824" + " and the obtained probability is " + str(p2))
+
+def test_backward():
+    u1=0;u2=3;std1=1;std2=2;
+    mc = MarkovChain( np.array( [ 1, 0 ] ), np.array( [ [ 0.9, 0.1,0 ], [ 0, 0.9, 0.1 ] ] ) ) 
+    g1 = GaussD( means=[u1], stdevs=[std1] )   # Distribution for state = 1
+    g2 = GaussD( means=[u2], stdevs=[std2] )   # Distribution for state = 2
+    h  = HMM( mc, [g1, g2])                # The HMM
+    
+    x=np.array([[-0.2,2.6,1.3]])
+    #s=np.array([[1, 0.1625, 0.8266, 0.0581]])
+    
+    alphas,betas,cs=h.backward(x,scale=True);
+    print("For the example in the book:")
+    print("The betas matrix when normalized gave us:")
+    print(betas)
 def test_learning():
         # Define a HMM
     q = np.array([0.8, 0.2])
@@ -265,7 +358,7 @@ def test_learning():
     g2 = GaussD(means=means[1], cov=covs[1] )   # Distribution for state = 1
     
     hm  = HMM(mc,[g1,g2])
-    obs = np.array([ hm.rand(100)[0] for _ in range(10) ])
+    #obs = np.array([ hm.rand(100)[0] for _ in range(10) ])
     
     print('True HMM parameters:')
     print('q:')
@@ -275,17 +368,20 @@ def test_learning():
     print('B: means, covariances')
     print(means)
     print(covs)
-    
+    obs_other_hmm=np.load("testobs.npy")
+    obs=[i.T for i in obs_other_hmm]
     # Estimate the HMM parameters from the obseved samples
     # Start by. assigning initial HMM parameter values,
     # then refine these iteratively
     qstar = np.array([0.8, 0.2])
     Astar = np.array([[0.5, 0.5], [0.5, 0.5]])
-    mc2 = MarkovChain( qstar, Astar ) 
-    meansstar = np.array( [[0, 0], [0, 0]] )
+    
+    meansstar = np.array( [[0, 0], [2, 2]] )
     
     covsstar  = np.array( [[[1, 0],[0, 1]], 
                            [[1, 0],[0,1]]] )
+    
+    mc2 = MarkovChain( qstar, Astar ) 
     
     g1_2 = GaussD( means=meansstar[0], cov=covsstar[0] )   # Distribution for state = 1
     g2_2 = GaussD(means=meansstar[1], cov=covsstar[1] )   # Distribution for state = 1
@@ -294,7 +390,7 @@ def test_learning():
     hm_learn  = HMM(mc2,[g1_2,g2_2])
     
     print("Running the Baum Welch Algorithm...")
-    hist=hm_learn.baum_welch(obs, 20, uselog=False)
+    hist=hm_learn.baum_welch(obs, 20, uselog=False,scale=True)
     
     print('True HMM parameters:')
     print('q:')
@@ -303,21 +399,24 @@ def test_learning():
     print(hm_learn.stateGen.A)
     print('B: means, covariances of 1')
     print(hm_learn.outputDistr[0].means)
-    print(hm_learn.outputDistr[0].means)
+    print(hm_learn.outputDistr[0].cov)
+    print(hm_learn.outputDistr[1].means)
+    print(hm_learn.outputDistr[1].cov)
+    # hm_learn2 = HMM(mc2,[g1_2,g2_2])
     
-    hm_learn2 = HMM(qstar, Astar, Bstar)
-    
-    print("Running the Baum Welch Algorithm with logs...")
-    hist=hm_learn2.baum_welch(obs, 20, prin=1, uselog=True)
-    print('True HMM parameters:')
-    print('q:')
-    print(hm_learn2.stateGen.q)
-    print('A:')
-    print(hm_learn2.stateGen.A)
-    print('B: means, covariances of 1')
-    print(hm_learn2.outputDistr[0].means)
-    print(hm_learn2.outputDistr[0].means)
+    # print("Running the Baum Welch Algorithm with logs...")
+    # hist=hm_learn2.baum_welch(obs, 6, uselog=True,scale=False)
+    # print('True HMM parameters:')
+    # print('q:')
+    # print(hm_learn2.stateGen.q)
+    # print('A:')
+    # print(hm_learn2.stateGen.A)
+    # print('B: means, covariances of 1')
+    # print(hm_learn2.outputDistr[0].means)
+    # print(hm_learn2.outputDistr[0].means)
 if __name__ == "__main__":
     #test load and save of the model.
+    #test_forward()
+    #test_backward()
     test_learning();
     

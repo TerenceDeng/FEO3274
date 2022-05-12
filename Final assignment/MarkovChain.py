@@ -136,6 +136,8 @@ class MarkovChain:
             for j in range(A.shape[0]):
                 temp[j] = alpha[:,t-1].dot(A[:,j]) * pX[j,t]
             c[t] = np.sum(temp)
+            if c[t] > 1:
+                print("Should not happen!")
             alpha[:,t] = temp/c[t]
 
         if self.is_finite:
@@ -143,11 +145,42 @@ class MarkovChain:
             c = np.append(c, np.array([variable]))
             
         return alpha, c
+    
+    def backward(self,scaled):
+        if self.is_finite:
+            A = self.A[:,:-1]
+        else:
+            A = self.A
+        beta = np.zeros((self.A.shape[0],scaled.shape[1]))
+        temp = np.zeros(self.A.shape[0])
+        alphas,cs = self.forward(scaled)
+        
+        if self.is_finite:
+            temp = self.A[:,-1]
+            temp = temp/(cs[-1]*cs[-2])
+        else:
+            temp = np.ones((self.A.shape[0]))
+            temp = temp/cs[-1]
+        beta[:,-1] = temp
+        
+        
+        for t in range(scaled.shape[1]-2, -1, -1):
+            temp = np.zeros(A.shape[0])
+            for i in range(A.shape[0]):                
+                for j in range(A.shape[0]):
+                    temp[i] += A[i,j]*scaled[j,t+1]*beta[j,t+1]
+            beta[:,t] = temp/cs[t]
+
+        if self.is_finite:
+            temp = self.A[:,-1]
+            temp = temp/(cs[-1]*cs[-2])
+        else:
+            temp = np.ones((self.A.shape[0]))
+            temp = temp/cs[-1]
+        beta[:,-1] = temp
+        return alphas,beta, cs
 
     def finiteDuration(self):
-        pass
-    
-    def backward(self):
         pass
 
     def adaptStart(self):
