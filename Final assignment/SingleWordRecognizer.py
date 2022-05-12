@@ -30,7 +30,7 @@ class SingleWordRecognizer:
         mean_length=int(np.mean([i.shape[1] for i in ds]));
         feature_size=ds[0].shape[0];
         self.initialize(mean_length,feature_size);
-        history=self.HMM.baum_welch(ds,niter,history=True)
+        history=self.HMM.baum_welch(ds,7, uselog=False,scale=True)
         return history;
     def evaluate(self,data,norm=False):
         if isinstance(data,list):

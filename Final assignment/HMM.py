@@ -162,7 +162,9 @@ class HMM:
                     if uselog:
                         xi[-1][j][-1] = np.log(alphahats_list[i][-1][j])+np.log(betahats_list[i][-1][j])+np.log(cs_list[i][-1])
                     else:
-                        xi[-1][j][-1] = alphahats_list[i][-1][j]*betahats_list[i][-1][j]*cs_list[i][-1]
+                        xi[-1][j][-1] = alphahats_list[i][j][-1]*betahats_list[i][j][-1]*cs_list[i][-1]
+                
+                xi[-1]=np.divide(xi[-1],np.sum(xi[-1]))
                 
             if uselog:
                 xi = np.exp(xi)
@@ -220,8 +222,8 @@ class HMM:
             self.outputDistr = newoutputDistr
             if history:
                 p_x_list=np.asarray([np.sum(np.log(i)) for i in cs_list]);
-                hist.append(np.mean(np.exp(p_x_list)))
-                #hist.append(np.median(p_x_list))
+                #hist.append(np.mean(np.exp(p_x_list)))
+                hist.append(np.median(p_x_list))
                # if np.median(p_x_list) > 0:
                  #   print("Weird!")
         return hist;
@@ -402,21 +404,69 @@ def test_learning():
     print(hm_learn.outputDistr[0].cov)
     print(hm_learn.outputDistr[1].means)
     print(hm_learn.outputDistr[1].cov)
-    # hm_learn2 = HMM(mc2,[g1_2,g2_2])
+   
+def test_learning_on_finite():
+    q = np.array([0.8, 0.2])
+    A = np.array([[0.95, 0.05,0],
+                  [0.00, 0.99,0.01]])
     
-    # print("Running the Baum Welch Algorithm with logs...")
-    # hist=hm_learn2.baum_welch(obs, 6, uselog=True,scale=False)
-    # print('True HMM parameters:')
-    # print('q:')
-    # print(hm_learn2.stateGen.q)
-    # print('A:')
-    # print(hm_learn2.stateGen.A)
-    # print('B: means, covariances of 1')
-    # print(hm_learn2.outputDistr[0].means)
-    # print(hm_learn2.outputDistr[0].means)
+    means = np.array( [[0, 0], [2, 2]] )
+    covs  = np.array( [[[1, 2],[2, 4]], 
+                       [[1, 0],[0, 3]]] )
+    mc = MarkovChain( q, A ) 
+    g1 = GaussD( means=means[0], cov=covs[0] )   # Distribution for state = 1
+    g2 = GaussD(means=means[1], cov=covs[1] )   # Distribution for state = 1
+    
+    hm  = HMM(mc,[g1,g2])
+    obs = [ hm.rand(500)[0] for _ in range(100) ]
+    
+    print('True HMM parameters:')
+    print('q:')
+    print(q)
+    print('A:')
+    print(A)
+    print('B: means, covariances')
+    print(means)
+    print(covs)
+    #obs_other_hmm=np.load("testobs.npy")
+    #obs=[i.T for i in obs_other_hmm]
+    # Estimate the HMM parameters from the obseved samples
+    # Start by. assigning initial HMM parameter values,
+    # then refine these iteratively
+    qstar = np.array([0.8, 0.2])
+    Astar = np.array([[0.8, 0.2,0],
+                  [0.00, 0.95,0.05]])
+    
+    meansstar = np.array( [[0, 0], [2, 2]] )
+    
+    covsstar  = np.array( [[[1, 0],[0, 1]], 
+                           [[1, 0],[0,1]]] )
+    
+    mc2 = MarkovChain( qstar, Astar ) 
+    
+    g1_2 = GaussD( means=meansstar[0], cov=covsstar[0] )   # Distribution for state = 1
+    g2_2 = GaussD(means=meansstar[1], cov=covsstar[1] )   # Distribution for state = 1
+    
+    
+    hm_learn  = HMM(mc2,[g1_2,g2_2])
+    
+    print("Running the Baum Welch Algorithm...")
+    hist=hm_learn.baum_welch(obs, 20, uselog=False,scale=True)
+    
+    print('True HMM parameters:')
+    print('q:')
+    print(hm_learn.stateGen.q)
+    print('A:')
+    print(hm_learn.stateGen.A)
+    print('B: means, covariances of 1')
+    print(hm_learn.outputDistr[0].means)
+    print(hm_learn.outputDistr[0].cov)
+    print(hm_learn.outputDistr[1].means)
+    print(hm_learn.outputDistr[1].cov)
 if __name__ == "__main__":
     #test load and save of the model.
     #test_forward()
     #test_backward()
-    test_learning();
+    #test_learning();
+    test_learning_on_finite();
     
