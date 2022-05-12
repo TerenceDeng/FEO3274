@@ -118,7 +118,7 @@ class HMM:
         
         if not scale:
             scaled = p;
-        return self.backward(scaled)
+        return self.stateGen.backward(scaled)
     
 
     def viterbi(self):
@@ -145,21 +145,33 @@ class HMM:
 
     def adaptAccum(self):
         pass
+    # def prob(self, x):
+    #     T = x.shape[1]
+    #     N = len(self.outputDistr)
+    #     res = np.zeros((N, T))
+    #     p=np.zeros((N, T))
+    #     for i in range(N):
+    #         for j in range(T):
+    #             res[i,j] = self.outputDistr[i].prob(x[:,j])
+    #             p[i,j] = self.outputDistr[i].prob(x[:,j])
+    #     scaled = np.zeros(res.shape)
+    #     for i in range(scaled.shape[0]):
+    #         for j in range(scaled.shape[1]):
+    #             scaled[i, j] = res[i,j]/np.amax(res[:,j])
+    #             scaled[i, j] = p[i,j]/np.amax(p[:,j])
+    #     return p, scaled
     def prob(self, x):
         T = x.shape[1]
         N = len(self.outputDistr)
         res = np.zeros((N, T))
-        p=np.zeros((N, T))
         for i in range(N):
             for j in range(T):
                 res[i,j] = self.outputDistr[i].prob(x[:,j])
-                p[i,j] = self.outputDistr[i].prob(x[:,j])
         scaled = np.zeros(res.shape)
         for i in range(scaled.shape[0]):
             for j in range(scaled.shape[1]):
                 scaled[i, j] = res[i,j]/np.amax(res[:,j])
-                scaled[i, j] = p[i,j]/np.amax(p[:,j])
-        return p, scaled
+        return res, scaled
 
 u1=0;u2=3;std1=1;std2=2;
 mc = MarkovChain( np.array( [ 1, 0 ] ), np.array( [ [ 0.9, 0.1,0 ], [ 0, 0.9, 0.1 ] ] ) ) 
@@ -170,12 +182,12 @@ h  = HMM( mc, [g1, g2])                # The HMM
 x=np.array([[-0.2,2.6,1.3]])
 #s=np.array([[1, 0.1625, 0.8266, 0.0581]])
 
-betas=h.backward(x);
+alphas,betas,cs=h.backward(x);
 print("For the example in the book:")
 print("The betas matrix when normalized gave us:")
 print(betas)
 
-betas,cs=h.backward(x);
+alphas,betas,cs=h.backward(x);
 print("And then when not normalized we get:")
 print(cs)
 print("Finally the logprob:")
