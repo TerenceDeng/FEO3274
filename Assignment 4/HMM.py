@@ -145,21 +145,6 @@ class HMM:
 
     def adaptAccum(self):
         pass
-    # def prob(self, x):
-    #     T = x.shape[1]
-    #     N = len(self.outputDistr)
-    #     res = np.zeros((N, T))
-    #     p=np.zeros((N, T))
-    #     for i in range(N):
-    #         for j in range(T):
-    #             res[i,j] = self.outputDistr[i].prob(x[:,j])
-    #             p[i,j] = self.outputDistr[i].prob(x[:,j])
-    #     scaled = np.zeros(res.shape)
-    #     for i in range(scaled.shape[0]):
-    #         for j in range(scaled.shape[1]):
-    #             scaled[i, j] = res[i,j]/np.amax(res[:,j])
-    #             scaled[i, j] = p[i,j]/np.amax(p[:,j])
-    #     return p, scaled
     def prob(self, x):
         T = x.shape[1]
         N = len(self.outputDistr)
